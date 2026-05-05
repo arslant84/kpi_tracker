@@ -1,0 +1,269 @@
+{% extends 'tasks/base.html' %}
+{% block title %}KPI Table | KPI Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* All .section-wrap, .kpi-table, .ai-panel, .status-badge, .risk-badge styles
+     now live in custom.css — only page-specific overrides here */
+  .goal-header h6 { margin:0; font-weight:700; font-size:.95rem; }
+  .ai-btn-green { color:#16a34a; border-color:#16a34a; }
+  .ai-btn-amber { color:#d97706; border-color:#d97706; }
+  .ai-btn-red   { color:#dc2626; border-color:#dc2626; }
+  .status-badge { white-space:nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="fw-bold text-primary mb-0">KPI Table</h2>
+      <small class="text-muted">{{ cycle.name|default:"All goals and tasks" }}</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+      </a>
+      <a href="{% url 'add_goal' %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>Add Goal
+      </a>
+      <a href="{% url 'add_task' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Add Task
+      </a>
+    </div>
+  </div>
+
+  <!-- Weight allocation bar -->
+  {% if cycle and total_weight is not None %}
+  <div class="card mb-3 py-2 px-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="small fw-semibold text-muted">
+        <i class="bi bi-pie-chart me-1"></i>Weight Allocation
+      </span>
+      <!-- Mini stacked bar -->
+      <div style="flex:1;min-width:160px;max-width:340px;height:14px;border-radius:5px;overflow:hidden;display:flex;background:var(--progress-track);">
+        {% for goal in goals %}{% if goal.weight %}
+        <div style="width:{{ goal.weight }}%;background:{{ goal.color }};height:100%;min-width:2px;"
+             title="{{ goal.name }}: {{ goal.weight }}%"></div>
+        {% endif %}{% endfor %}
+      </div>
+      <!-- Numbers -->
+      <div class="d-flex align-items-center gap-3 small">
+        <span>
+          <strong>{{ total_weight|floatformat:1 }}%</strong>
+          <span class="text-muted">/ 100% allocated</span>
+        </span>
+        {% if total_weight == 100 %}
+        <span class="badge weight-ok">
+          <i class="bi bi-check2 me-1"></i>Perfect — 100%
+        </span>
+        {% elif total_weight > 100 %}
+        <span class="badge weight-over">
+          <i class="bi bi-exclamation-triangle me-1"></i>Over by {{ over_weight|floatformat:1 }}%
+        </span>
+        {% else %}
+        <span class="badge weight-low">
+          <i class="bi bi-dash-circle me-1"></i>{{ remaining_weight|floatformat:1 }}% unallocated
+        </span>
+        {% endif %}
+        <a href="{% url 'add_goal' %}" class="text-muted small" style="text-decoration:none;">
+          <i class="bi bi-pencil-square"></i> Adjust
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if goals %}
+    {% for goal in goals %}
+    <div class="section-wrap">
+
+      <!-- Goal header -->
+      <div class="goal-header" style="background:{{ goal.color }}; border-bottom:2px solid rgba(0,0,0,.12);">
+        <h6>{{ goal.name }}</h6>
+        {% if goal.weight %}
+        <span class="badge bg-dark bg-opacity-50 ms-1">{{ goal.weight }}%</span>
+        {% endif %}
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <span class="small fw-semibold">{{ goal.overall_completion }}% complete</span>
+          <div class="progress" style="width:80px;height:8px;">
+            <div class="progress-bar bg-dark bg-opacity-40" style="width:{{ goal.overall_completion }}%"></div>
+          </div>
+          <a href="{% url 'add_task_to_goal' goal.id %}" class="btn btn-sm btn-dark bg-opacity-25 py-0 px-2" title="Add task">
+            <i class="bi bi-plus"></i>
+          </a>
+          <a href="{% url 'edit_goal' goal.id %}" class="btn btn-sm btn-dark bg-opacity-25 py-0 px-2" title="Edit goal">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <a href="{% url 'delete_goal' goal.id %}" class="btn btn-sm btn-danger bg-opacity-75 py-0 px-2" title="Delete goal">
+            <i class="bi bi-trash"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Tasks table -->
+      <div class="table-responsive">
+        <table class="table table-bordered kpi-table">
+          <thead>
+            <tr>
+              <th style="width:21%">Goal Description</th>
+              <th style="width:17%">Unit of Measurement</th>
+              <th style="width:14%">Base Target</th>
+              <th style="width:14%">Stretch Target</th>
+              <th style="width:7%">Deadline</th>
+              <th style="width:8%">Progress</th>
+              <th style="width:7%">Status</th>
+              <th style="width:12%">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for task in goal.tasks.all %}
+            <tr {% if task.is_overdue %}class="table-danger"{% elif task.status == 'completed' %}class="table-success bg-opacity-25"{% endif %}>
+              <td class="desc">
+                <div>{{ task.description }}</div>
+                {% if task.notes %}
+                <div class="mt-1 small text-muted border-top pt-1">
+                  <i class="bi bi-chat-left-text me-1"></i>{{ task.notes|truncatechars:80 }}
+                </div>
+                {% endif %}
+              </td>
+              <td class="uom">{{ task.unit_of_measurement|default:"—" }}</td>
+              <td class="target">{{ task.base_target|default:"—" }}</td>
+              <td class="target">{{ task.stretch_target|default:"—" }}</td>
+              <td class="text-nowrap small">
+                {% if task.base_deadline %}
+                  <span class="{% if task.is_overdue %}text-danger fw-bold{% endif %}">
+                    {{ task.base_deadline|date:"d M Y" }}
+                  </span>
+                  {% if task.stretch_deadline %}
+                  <div class="text-muted" style="font-size:.68rem;">Stretch: {{ task.stretch_deadline|date:"d M Y" }}</div>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="progress-cell">
+                <div class="progress mb-1" style="height:8px;">
+                  <div class="progress-bar
+                    {% if task.completion_level == 100 %}bg-success
+                    {% elif task.completion_level >= 60 %}bg-info
+                    {% elif task.completion_level >= 30 %}bg-warning
+                    {% else %}bg-danger{% endif %}"
+                    style="width:{{ task.completion_level }}%"></div>
+                </div>
+                <small>{{ task.completion_level }}%</small>
+              </td>
+              <td>
+                <span class="status-badge status-{{ task.status }}">
+                  {% if task.status == 'completed' %}<i class="bi bi-check2-circle"></i>
+                  {% elif task.status == 'on_track' %}<i class="bi bi-check-circle"></i>
+                  {% elif task.status == 'behind' %}<i class="bi bi-exclamation-circle"></i>
+                  {% elif task.status == 'ahead' %}<i class="bi bi-arrow-up-circle"></i>
+                  {% else %}<i class="bi bi-dash-circle"></i>{% endif %}
+                  {{ task.get_status_display }}
+                </span>
+              </td>
+              <td class="text-nowrap">
+                <a href="{% url 'update_status' task.id %}" class="btn btn-sm btn-primary py-0 px-2 mb-1" title="Update status">
+                  <i class="bi bi-pencil-square"></i>
+                </a>
+                <a href="{% url 'edit_task' task.id %}" class="btn btn-sm btn-outline-secondary py-0 px-2 mb-1" title="Edit task">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{% url 'delete_task' task.id %}" class="btn btn-sm btn-outline-danger py-0 px-2 mb-1" title="Delete task">
+                  <i class="bi bi-trash"></i>
+                </a>
+                <!-- AI insight toggle -->
+                <button class="btn btn-sm py-0 px-2
+                  {% if task.ai_insight.risk_level == 'green' %}ai-btn-green
+                  {% elif task.ai_insight.risk_level == 'amber' %}ai-btn-amber
+                  {% elif task.ai_insight.risk_level == 'red' %}ai-btn-red
+                  {% else %}btn-outline-secondary{% endif %}"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#ai-{{ task.id }}"
+                  title="AI Insight">
+                  <i class="bi bi-robot"></i>
+                  {% if task.ai_insight %}
+                    {% if task.ai_insight.risk_level == 'green' %}🟢
+                    {% elif task.ai_insight.risk_level == 'amber' %}🟡
+                    {% elif task.ai_insight.risk_level == 'red' %}🔴
+                    {% endif %}
+                  {% endif %}
+                </button>
+              </td>
+            </tr>
+            <!-- AI Insight collapsible row -->
+            <tr class="collapse" id="ai-{{ task.id }}">
+              <td colspan="8" class="p-0">
+                {% if task.ai_insight %}
+                <div class="ai-panel risk-{{ task.ai_insight.risk_level }}">
+                  <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <i class="bi bi-robot fs-5"></i>
+                      <span class="risk-badge risk-badge-{{ task.ai_insight.risk_level }}">
+                        {{ task.ai_insight.risk_level|upper }} RISK
+                      </span>
+                      <span class="text-muted small">{{ task.ai_insight.predicted_outcome }}</span>
+                    </div>
+                    <form method="post" action="{% url 'generate_insight' task.id %}" class="d-inline ms-auto flex-shrink-0">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Refresh insight">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                        {% if task.ai_insight_at %}<span class="text-muted" style="font-size:.68rem;"> · {{ task.ai_insight_at|date:"d M, H:i" }}</span>{% endif %}
+                      </button>
+                    </form>
+                  </div>
+                  <p class="mb-2"><strong>Assessment:</strong> {{ task.ai_insight.summary }}</p>
+                  <p class="mb-2"><strong>Advice:</strong> {{ task.ai_insight.advice }}</p>
+                  {% if task.ai_insight.recommended_actions %}
+                  <div><strong>Recommended Actions:</strong>
+                    <ul class="mb-0 mt-1">
+                      {% for action in task.ai_insight.recommended_actions %}
+                      <li>{{ action }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                </div>
+                {% else %}
+                <div class="ai-panel">
+                  <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-robot text-muted fs-5"></i>
+                    <span class="text-muted small">No AI insight generated yet for this task.</span>
+                    <form method="post" action="{% url 'generate_insight' task.id %}" class="ms-2">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-stars me-1"></i>Generate AI Insight
+                      </button>
+                    </form>
+                  </div>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-3">
+                No tasks yet.
+                <a href="{% url 'add_task_to_goal' goal.id %}">Add the first task</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-clipboard2-x text-muted" style="font-size:3rem;"></i>
+    <h5 class="mt-3 text-muted">No goals yet</h5>
+    <a href="{% url 'add_goal' %}" class="btn btn-primary mt-2">
+      <i class="bi bi-plus-lg me-1"></i>Add your first goal
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

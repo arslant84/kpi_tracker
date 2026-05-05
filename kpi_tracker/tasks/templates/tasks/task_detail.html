@@ -1,0 +1,206 @@
+{% extends 'tasks/base.html' %}
+
+{% block title %}{{ task.task_name }} | KPI Tracker{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5 pb-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-sm border-0">
+                <!-- Card Header -->
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h2 class="fw-bold text-primary mb-1">{{ task.task_name }}</h2>
+                        <span class="badge {% if task.kpi_status == 'On Track' %}bg-success{% elif task.kpi_status == 'Behind Schedule' %}bg-danger{% else %}bg-info{% endif %} px-3 py-2">
+                            <i class="bi {% if task.kpi_status == 'On Track' %}bi-check-circle{% elif task.kpi_status == 'Behind Schedule' %}bi-exclamation-circle{% else %}bi-arrow-up-circle{% endif %} me-1"></i>
+                            {{ task.kpi_status }}
+                        </span>
+                    </div>
+                    <p class="text-muted">Task details and progress tracking</p>
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body p-4">
+                    <!-- Description Section -->
+                    <div class="mb-4">
+                        <h5 class="d-flex align-items-center">
+                            <i class="bi bi-info-circle me-2 text-primary"></i>Description
+                        </h5>
+                        <p>{{ task.description }}</p>
+                    </div>
+                    
+                    <!-- Assignment and Completion Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5 class="d-flex align-items-center">
+                                <i class="bi bi-person me-2 text-primary"></i>Assigned To
+                            </h5>
+                            <p>{{ task.assigned_to }}</p>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="d-flex align-items-center">
+                                <i class="bi bi-bar-chart me-2 text-primary"></i>Completion Level
+                            </h5>
+                            <div class="progress">
+                                <div class="progress-bar {% if task.completion_level < 30 %}bg-danger{% elif task.completion_level < 70 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     aria-valuenow="{{ task.completion_level }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100" 
+                                     style="width: {{ task.completion_level }}%">
+                                </div>
+                            </div>
+                            <p class="text-end mt-1">{{ task.completion_level }}%</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Deadline and KPI Status Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5 class="d-flex align-items-center">
+                                <i class="bi bi-calendar me-2 text-primary"></i>Deadline
+                            </h5>
+                            {% if task.deadline %}
+                                <p>{{ task.deadline|date:"F d, Y" }}</p>
+                                <div class="alert {% if task.days_until_deadline < 0 %}alert-danger{% elif task.days_until_deadline == 0 %}alert-warning{% else %}alert-info{% endif %} d-flex align-items-center">
+                                    <i class="bi {% if task.days_until_deadline < 0 %}bi-exclamation-circle{% elif task.days_until_deadline == 0 %}bi-clock{% else %}bi-calendar-date{% endif %} me-2"></i>
+                                    <div>{{ task.deadline_status }}</div>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No deadline set</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="d-flex align-items-center">
+                                <i class="bi bi-check2-square me-2 text-primary"></i>KPI Status Verification
+                            </h5>
+                            <p>
+                                <a href="{% url 'answer_questionnaire' task.id %}" class="btn btn-outline-primary">
+                                    <i class="bi bi-clipboard-check me-2"></i>Complete Status Questionnaire
+                                </a>
+                            </p>
+                            <small class="text-muted">Answer AI-generated questions to verify task status</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Cost Savings Section (for self-assigned tasks) -->
+                    {% if task.assigned_to == 'Self' and task.cost_savings > 0 %}
+                    <div class="mb-4">
+                        <h5 class="d-flex align-items-center">
+                            <i class="bi bi-currency-dollar me-2 text-primary"></i>Cost Savings
+                        </h5>
+                        <div class="alert alert-success d-flex align-items-center">
+                            <i class="bi bi-piggy-bank me-3 fs-3"></i>
+                            <div>
+                                <h3 class="mb-0">${{ task.cost_savings|floatformat:2 }}</h3>
+                                <small>Estimated savings by completing this task in-house</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Questionnaire Results Section -->
+                    {% if task.questionnaire and task.questionnaire_responses %}
+                    <div class="mb-4">
+                        <h5 class="d-flex align-items-center">
+                            <i class="bi bi-clipboard-data me-2 text-primary"></i>Status Questionnaire Results
+                        </h5>
+                        <div class="alert alert-info d-flex">
+                            <i class="bi bi-info-circle me-3 fs-3"></i>
+                            <div>
+                                <p class="mb-1"><strong>Last updated:</strong> {{ task.last_updated|date:"F d, Y H:i" }}</p>
+                                <p class="mb-0"><strong>Status determined:</strong> {{ task.kpi_status }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- AI Progress Summary Section -->
+                    {% if task.progress_summary %}
+                    <div class="mb-4">
+                        <h5 class="d-flex align-items-center">
+                            <i class="bi bi-graph-up me-2 text-primary"></i>AI Progress Summary
+                        </h5>
+                        <div class="alert alert-light border d-flex">
+                            <i class="bi bi-robot me-3 fs-3 text-primary"></i>
+                            <div>
+                                <p class="mb-0">{{ task.progress_summary }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- AI Task Suggestions Section -->
+                    {% if task.ai_suggestions %}
+                    <div class="mb-4">
+                        <h5 class="d-flex align-items-center">
+                            <i class="bi bi-lightbulb me-2 text-primary"></i>AI Task Suggestions
+                        </h5>
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <p class="text-muted mb-3">The following subtasks are suggested to help complete this task efficiently:</p>
+                                <div class="list-group">
+                                    {% for suggestion in task.ai_suggestions %}
+                                    <div class="list-group-item border-0 mb-2 bg-light rounded">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ suggestion.name }}</h6>
+                                            <span class="badge {% if suggestion.estimated_effort == 'High' %}bg-danger{% elif suggestion.estimated_effort == 'Medium' %}bg-warning{% else %}bg-success{% endif %}">
+                                                {{ suggestion.estimated_effort }} Effort
+                                            </span>
+                                        </div>
+                                        <p class="mb-1 small">{{ suggestion.description }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Task Action Buttons -->
+                <div class="card-footer bg-white py-3 border-top">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <a href="{% url 'task_list' %}" class="btn btn-outline-secondary mb-2 mb-md-0">
+                            <i class="bi bi-arrow-left me-2"></i>Back to List
+                        </a>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{% url 'answer_questionnaire' task.id %}" class="btn btn-outline-primary">
+                                <i class="bi bi-clipboard-check me-2"></i>Update Status
+                            </a>
+                            <a href="{% url 'edit_task' task.id %}" class="btn btn-primary">
+                                <i class="bi bi-pencil me-2"></i>Edit
+                            </a>
+                            <a href="{% url 'delete_task' task.id %}" class="btn btn-outline-danger">
+                                <i class="bi bi-trash me-2"></i>Delete
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Task detail specific styles */
+    .task-metadata {
+        font-size: 0.9rem;
+    }
+    
+    /* Ensure buttons have proper spacing on mobile */
+    @media (max-width: 768px) {
+        .card-footer .d-flex {
+            justify-content: center !important;
+        }
+        
+        .card-footer .btn {
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}

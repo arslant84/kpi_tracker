@@ -1,0 +1,228 @@
+{% extends 'tasks/base.html' %}
+{% block title %}{{ title }} | KPI Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Weight meter */
+  .weight-bar-wrap {
+    height: 22px;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    background: var(--progress-track);
+  }
+  .weight-bar-seg {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .62rem;
+    font-weight: 700;
+    color: rgba(0,0,0,.55);
+    transition: width .2s ease;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .weight-bar-this {
+    background: var(--primary);
+    color: #fff;
+  }
+  .weight-bar-over {
+    background: var(--status-red-fg);
+    color: #fff;
+  }
+  .weight-status {
+    font-size: .78rem;
+    font-weight: 600;
+    padding: .25em .6em;
+    border-radius: 5px;
+  }
+  /* weight-ok / weight-low / weight-over come from custom.css */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="py-4 px-2">
+  <div class="row justify-content-center">
+    <div class="col-xl-6 col-lg-8 col-md-10 col-12">
+
+      <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="{% url 'kpi_table' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+          <h3 class="fw-bold text-primary mb-0">{{ title }}</h3>
+          {% if cycle %}
+          <small class="text-muted">
+            <i class="bi bi-calendar3 me-1"></i>Cycle: <strong>{{ cycle.name }}</strong>
+          </small>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Weight Allocation Panel -->
+      {% if cycle %}
+      <div class="card mb-3">
+        <div class="card-body py-3 px-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small fw-semibold text-muted">
+              <i class="bi bi-pie-chart me-1"></i>Cycle Weight Allocation
+            </span>
+            <span id="weightStatus" class="weight-status weight-low">—</span>
+          </div>
+
+          <!-- Stacked bar -->
+          <div class="weight-bar-wrap mb-2">
+            {% for g in weight_goals %}
+            <div class="weight-bar-seg"
+                 style="width:{{ g.weight }}%;background:{{ g.color }};min-width:{% if g.weight > 0 %}4px{% else %}0{% endif %};"
+                 title="{{ g.name }}: {{ g.weight }}%">
+              {% if g.weight >= 5 %}{{ g.weight|floatformat:0 }}%{% endif %}
+            </div>
+            {% endfor %}
+            <!-- This goal's segment (updated live) -->
+            <div class="weight-bar-seg weight-bar-this" id="thisGoalBar" style="width:0%;"
+                 title="This goal">
+              <span id="thisGoalBarLabel"></span>
+            </div>
+          </div>
+
+          <!-- Legend row -->
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            {% for g in weight_goals %}
+            <span class="d-flex align-items-center gap-1" style="font-size:.7rem;">
+              <span class="d-inline-block rounded-circle"
+                    style="width:8px;height:8px;background:{{ g.color }};border:1px solid rgba(0,0,0,.2);"></span>
+              <span class="text-muted">{{ g.name|truncatechars:20 }}</span>
+              <strong>{{ g.weight|floatformat:1 }}%</strong>
+            </span>
+            {% endfor %}
+            <span class="d-flex align-items-center gap-1" style="font-size:.7rem;" id="thisGoalLegend">
+              <span class="d-inline-block rounded-circle"
+                    style="width:8px;height:8px;background:var(--primary);"></span>
+              <span class="text-muted">This goal</span>
+              <strong id="thisGoalLegendWeight">0%</strong>
+            </span>
+          </div>
+
+          <!-- Summary row -->
+          <div class="d-flex gap-3 mt-2" style="font-size:.75rem;">
+            <span class="text-muted">
+              Other goals: <strong>{{ allocated_weight|floatformat:1 }}%</strong>
+            </span>
+            <span class="text-muted">
+              This goal: <strong id="thisGoalSummary">0%</strong>
+            </span>
+            <span class="ms-auto fw-semibold">
+              Total: <strong id="totalWeightDisplay">{{ allocated_weight|floatformat:1 }}%</strong>
+              <span class="text-muted">/ 100%</span>
+            </span>
+            <span class="text-muted">
+              Remaining: <strong id="remainingDisplay">{{ remaining_weight|floatformat:1 }}%</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Goal form -->
+      <div class="card">
+        <div class="card-body p-4">
+          <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Goal Name</label>
+              {{ form.name }}
+              {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Colour</label>
+              <div class="d-flex align-items-center gap-2">
+                {{ form.color }}
+                <span class="small text-muted">Pick the row colour (default: yellow)</span>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+              <div class="col-6">
+                <label class="form-label fw-semibold">Weight (%)</label>
+                {{ form.weight }}
+                {% if form.weight.errors %}
+                <div class="text-danger small">{{ form.weight.errors }}</div>
+                {% endif %}
+                <div class="form-text">Share of overall performance score</div>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">Display Order</label>
+                {{ form.order }}
+                <div class="form-text">Lower number = shown first</div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'kpi_table' %}" class="btn btn-outline-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary px-5">
+                <i class="bi bi-save me-2"></i>Save Goal
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const allocated = {{ allocated_weight|default:0 }};
+  const weightInput = document.getElementById('id_weight');
+  const thisBar     = document.getElementById('thisGoalBar');
+  const thisLabel   = document.getElementById('thisGoalBarLabel');
+  const thisLegend  = document.getElementById('thisGoalLegendWeight');
+  const thisSummary = document.getElementById('thisGoalSummary');
+  const totalDisp   = document.getElementById('totalWeightDisplay');
+  const remainDisp  = document.getElementById('remainingDisplay');
+  const statusBadge = document.getElementById('weightStatus');
+
+  function updateMeter() {
+    if (!weightInput) return;
+    const val = parseFloat(weightInput.value) || 0;
+    const total = allocated + val;
+    const remaining = 100 - total;
+
+    // Bar segment
+    const cappedWidth = Math.min(val, Math.max(0, 100 - allocated));
+    thisBar.style.width = cappedWidth + '%';
+    thisBar.className = 'weight-bar-seg ' + (total > 100 ? 'weight-bar-over' : 'weight-bar-this');
+    thisLabel.textContent = val >= 5 ? val.toFixed(1) + '%' : '';
+
+    // Text displays
+    if (thisLegend)  thisLegend.textContent  = val.toFixed(1) + '%';
+    if (thisSummary) thisSummary.textContent = val.toFixed(1) + '%';
+    if (totalDisp)   totalDisp.textContent   = total.toFixed(1) + '%';
+    if (remainDisp)  remainDisp.textContent  = remaining.toFixed(1) + '%';
+
+    // Status badge
+    if (!statusBadge) return;
+    if (total === 100) {
+      statusBadge.textContent = '✓ 100% — Perfect';
+      statusBadge.className = 'weight-status weight-ok';
+    } else if (total > 100) {
+      statusBadge.textContent = '⚠ Over by ' + (total - 100).toFixed(1) + '%';
+      statusBadge.className = 'weight-status weight-over';
+    } else {
+      statusBadge.textContent = (100 - total).toFixed(1) + '% unallocated';
+      statusBadge.className = 'weight-status weight-low';
+    }
+  }
+
+  if (weightInput) {
+    weightInput.addEventListener('input', updateMeter);
+    updateMeter(); // init on load
+  }
+</script>
+{% endblock %}

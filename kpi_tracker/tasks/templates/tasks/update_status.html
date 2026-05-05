@@ -1,0 +1,272 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Update Status | KPI Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+  #completionRange { accent-color: var(--primary); }
+
+  /* Update history timeline */
+  .update-timeline { position: relative; padding-left: 28px; }
+  .update-timeline::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  .update-entry {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+
+  .update-entry::before {
+    content: '';
+    position: absolute;
+    left: -23px;
+    top: 14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), .3);
+  }
+
+  .update-card {
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .85rem 1rem;
+    transition: border-color .15s;
+  }
+
+  .update-card:hover { border-color: rgba(var(--primary-rgb), .3); }
+
+  .update-note {
+    color: var(--text);
+    font-size: .875rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
+  .update-meta {
+    font-size: .72rem;
+    color: var(--text-muted);
+  }
+
+  /* Status chip in history */
+  .status-chip {
+    font-size: .68rem;
+    font-weight: 700;
+    padding: .2em .6em;
+    border-radius: 4px;
+    display: inline-block;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="py-4 mb-5 px-2">
+  <div class="row g-4">
+
+    <!-- LEFT: Task info + New update form -->
+    <div class="col-xl-5 col-lg-6">
+
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <a href="{% url 'kpi_table' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+          <h4 class="fw-bold text-primary mb-0">Update Progress</h4>
+          <small class="text-muted">Each save is recorded to the history →</small>
+        </div>
+      </div>
+
+      <!-- Task info card -->
+      <div class="task-preview p-3 mb-3">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="rounded-circle d-inline-block flex-shrink-0"
+                style="width:11px;height:11px;background:{{ task.goal.color }};border:1px solid rgba(0,0,0,.2);"></span>
+          <span class="small fw-semibold" style="color:var(--primary);">{{ task.goal.name }}</span>
+        </div>
+        <div class="fw-semibold mb-1">{{ task.description }}</div>
+        {% if task.unit_of_measurement %}
+        <div class="small text-muted">{{ task.unit_of_measurement }}</div>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-3 mt-2 small">
+          {% if task.base_deadline %}
+          <span><i class="bi bi-calendar-event me-1" style="color:var(--primary);"></i>
+            Base: <strong>{{ task.base_deadline|date:"d M Y" }}</strong></span>
+          {% endif %}
+          {% if task.stretch_deadline %}
+          <span><i class="bi bi-calendar-check me-1 text-success"></i>
+            Stretch: <strong>{{ task.stretch_deadline|date:"d M Y" }}</strong></span>
+          {% endif %}
+        </div>
+        {% if task.base_target %}
+        <div class="small mt-2 text-muted"><strong>Base target:</strong> {{ task.base_target }}</div>
+        {% endif %}
+        {% if task.stretch_target %}
+        <div class="small text-muted"><strong>Stretch target:</strong> {{ task.stretch_target }}</div>
+        {% endif %}
+      </div>
+
+      <!-- New update form -->
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-plus-circle-fill text-primary"></i>
+          <span>Log New Update</span>
+        </div>
+        <div class="card-body p-3">
+          <form method="post" id="updateForm">
+            {% csrf_token %}
+
+            <!-- Completion slider -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Completion Level</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" id="completionRange" min="0" max="100"
+                       class="form-range flex-grow-1"
+                       value="{{ form.completion_level.value|default:task.completion_level }}"
+                       oninput="syncNum(this.value)">
+                <div class="input-group" style="width:86px;">
+                  {{ form.completion_level }}
+                  <span class="input-group-text px-2">%</span>
+                </div>
+              </div>
+              <div class="progress mt-2" style="height:8px;">
+                <div id="completionBar" class="progress-bar"
+                     style="width:{{ form.completion_level.value|default:task.completion_level }}%;
+                            background:var(--primary);transition:width .15s;"></div>
+              </div>
+            </div>
+
+            <!-- Status -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Status</label>
+              {{ form.status }}
+            </div>
+
+            <!-- Note -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">
+                Update Note
+                <span class="text-muted fw-normal">(what was done &amp; what is pending)</span>
+              </label>
+              {{ form.note }}
+            </div>
+
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'kpi_table' %}" class="btn btn-outline-secondary btn-sm">Cancel</a>
+              <button type="submit" class="btn btn-primary px-4">
+                <i class="bi bi-journal-plus me-1"></i>Save &amp; Log
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Update history -->
+    <div class="col-xl-7 col-lg-6">
+
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="fw-bold mb-0">
+          <i class="bi bi-clock-history me-2 text-primary"></i>Update History
+        </h5>
+        <span class="badge bg-secondary">{{ updates.count }} entr{{ updates.count|pluralize:"y,ies" }}</span>
+      </div>
+
+      {% if updates %}
+      <div class="update-timeline">
+        {% for upd in updates %}
+        <div class="update-entry">
+          <div class="update-card">
+            <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <!-- Status chip -->
+                <span class="status-chip status-{{ upd.status }}">
+                  {% if upd.status == 'completed' %}<i class="bi bi-check2-circle"></i>
+                  {% elif upd.status == 'on_track' %}<i class="bi bi-check-circle"></i>
+                  {% elif upd.status == 'behind' %}<i class="bi bi-exclamation-circle"></i>
+                  {% elif upd.status == 'ahead' %}<i class="bi bi-arrow-up-circle"></i>
+                  {% else %}<i class="bi bi-dash-circle"></i>{% endif %}
+                  {{ upd.get_status_display }}
+                </span>
+                <!-- Completion pill -->
+                <span class="badge rounded-pill"
+                      style="background:rgba(var(--primary-rgb),.12);color:var(--primary);font-size:.7rem;">
+                  {{ upd.completion_level }}%
+                </span>
+              </div>
+              <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <span class="update-meta">
+                  <i class="bi bi-clock me-1"></i>{{ upd.created_at|date:"d M Y, H:i" }}
+                </span>
+                <!-- Delete button -->
+                <form method="post" action="{% url 'delete_update' task.id upd.id %}"
+                      onsubmit="return confirm('Delete this update entry?');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
+                          title="Delete this entry">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="progress mb-2" style="height:5px;">
+              <div class="progress-bar
+                {% if upd.completion_level == 100 %}bg-success
+                {% elif upd.completion_level >= 60 %}bg-info
+                {% elif upd.completion_level >= 30 %}bg-warning
+                {% else %}bg-danger{% endif %}"
+                style="width:{{ upd.completion_level }}%"></div>
+            </div>
+
+            <!-- Note text -->
+            {% if upd.note %}
+            <div class="update-note">{{ upd.note }}</div>
+            {% else %}
+            <div class="text-muted small fst-italic">No note written for this entry.</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-journal-x" style="font-size:2.5rem;opacity:.35;"></i>
+        <p class="mt-3 mb-0">No update history yet.</p>
+        <small>Use the form to log your first progress update.</small>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const numInput  = document.getElementById('id_completion_level');
+  const rangeInput = document.getElementById('completionRange');
+  const bar = document.getElementById('completionBar');
+  numInput.style.width = '56px';
+
+  function syncNum(val) {
+    numInput.value = val;
+    bar.style.width = val + '%';
+  }
+  numInput.addEventListener('input', function () {
+    rangeInput.value = this.value;
+    bar.style.width = this.value + '%';
+  });
+</script>
+{% endblock %}

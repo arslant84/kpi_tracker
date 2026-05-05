@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | KPI Tracker</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{% static 'css/bootstrap-icons.min.css' %}" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background: #F8FAFC;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: .9rem;
+            color: #1E293B;
+            -webkit-font-smoothing: antialiased;
+            padding: 1.5rem;
+        }
+
+        /* ── Brand mark ── */
+        .brand-mark {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .brand-icon {
+            width: 52px;
+            height: 52px;
+            background: #0F766E;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: .65rem;
+            box-shadow: 0 4px 12px rgba(15,118,110,.25);
+        }
+        .brand-icon i { font-size: 1.4rem; color: #fff; }
+        .brand-label {
+            font-size: .7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #94A3B8;
+        }
+
+        /* ── Card ── */
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+            padding: 2rem 2rem 1.75rem;
+        }
+
+        .login-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #1E293B;
+            margin-bottom: .2rem;
+        }
+        .login-sub {
+            font-size: .8rem;
+            color: #64748B;
+            margin-bottom: 1.75rem;
+            line-height: 1.5;
+        }
+
+        /* ── Error ── */
+        .login-error {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            border-radius: 6px;
+            padding: .6rem .85rem;
+            font-size: .82rem;
+            color: #DC2626;
+            margin-bottom: 1.25rem;
+        }
+
+        /* ── Form ── */
+        .field-label {
+            display: block;
+            font-size: .8rem;
+            font-weight: 600;
+            color: #1E293B;
+            margin-bottom: .35rem;
+        }
+        .field-wrap {
+            display: flex;
+            align-items: stretch;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: border-color .15s, box-shadow .15s;
+            margin-bottom: 1rem;
+        }
+        .field-wrap:focus-within {
+            border-color: #0F766E;
+            box-shadow: 0 0 0 3px rgba(15,118,110,.15);
+        }
+        .field-prefix {
+            display: flex;
+            align-items: center;
+            padding: 0 .75rem;
+            background: #F8FAFC;
+            color: #94A3B8;
+            font-size: .95rem;
+            border-right: 1px solid #E2E8F0;
+            flex-shrink: 0;
+        }
+        .field-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: .6rem .75rem;
+            font-size: .875rem;
+            font-family: inherit;
+            color: #1E293B;
+            background: #fff;
+        }
+        .field-input::placeholder { color: #94A3B8; }
+
+        /* ── Submit ── */
+        .btn-signin {
+            display: block;
+            width: 100%;
+            padding: .65rem;
+            background: #0F766E;
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: .9rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background .15s, box-shadow .15s;
+            margin-top: .5rem;
+        }
+        .btn-signin:hover {
+            background: #0D6660;
+            box-shadow: 0 2px 8px rgba(15,118,110,.3);
+        }
+        .btn-signin i { margin-right: .35rem; }
+
+        /* ── Footer ── */
+        .login-footer {
+            margin-top: 1.5rem;
+            font-size: .72rem;
+            color: #94A3B8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Teal icon mark — no app name text -->
+    <div class="brand-mark">
+        <div class="brand-icon">
+            <i class="bi bi-bar-chart-fill"></i>
+        </div>
+        <span class="brand-label">Performance Management</span>
+    </div>
+
+    <!-- Sign-in card -->
+    <div class="login-card">
+        <div class="login-title">Sign in</div>
+        <div class="login-sub">Enter your credentials to access the dashboard</div>
+
+        {% if form.errors %}
+        <div class="login-error">
+            <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>
+            Invalid username or password. Please try again.
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <label class="field-label" for="id_username">Username</label>
+            <div class="field-wrap">
+                <span class="field-prefix"><i class="bi bi-person"></i></span>
+                <input class="field-input" type="text" name="username" id="id_username"
+                       placeholder="Enter your username" autofocus required
+                       autocomplete="username">
+            </div>
+
+            <label class="field-label" for="id_password">Password</label>
+            <div class="field-wrap" style="margin-bottom:1.5rem;">
+                <span class="field-prefix"><i class="bi bi-lock"></i></span>
+                <input class="field-input" type="password" name="password" id="id_password"
+                       placeholder="Enter your password" required
+                       autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn-signin">
+                <i class="bi bi-box-arrow-in-right"></i>Sign In
+            </button>
+        </form>
+    </div>
+
+    <div class="login-footer">
+        &copy; {% now "Y" %} Performance Management System
+    </div>
+
+</body>
+</html>

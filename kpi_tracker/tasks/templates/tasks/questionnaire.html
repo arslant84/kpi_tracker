@@ -1,0 +1,108 @@
+{% extends 'tasks/base.html' %}
+
+{% block content %}
+<div class="container mt-4 mb-5 pb-5">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                    <h3 class="fw-bold text-primary mb-1">
+                        <i class="bi bi-clipboard-check me-2"></i>Task Status Questionnaire
+                    </h3>
+                    <p class="text-muted">Complete the questionnaire to update the task status</p>
+                </div>
+                <div class="card-body p-4">
+                    <h5 class="card-title">{{ task.task_name }}</h5>
+                    <p class="card-text mb-4">{{ task.description }}</p>
+                    
+                    <div class="alert alert-info d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                        <div>
+                            <strong>AI-Powered Assessment</strong>
+                            <p class="mb-0">This questionnaire has been specifically generated for this task to help determine its current status.
+                            Your responses will be analyzed to update the KPI status automatically.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning mb-4 d-flex align-items-center">
+                        <i class="bi bi-lightbulb-fill me-2 fs-5"></i>
+                        <div>
+                            <h6 class="mb-1">Response Guidelines:</h6>
+                            <p class="mb-0">For each question, provide a detailed response that reflects the current status of your task. 
+                            The system will analyze your responses to determine if the task is <strong>On Track</strong>, <strong>Behind Schedule</strong>, 
+                            or <strong>Ahead of Schedule</strong>.</p>
+                        </div>
+                    </div>
+                    
+                    <form method="post" id="questionnaireForm">
+                        {% csrf_token %}
+                        
+                        {% for field in form %}
+                        <div class="card mb-4 shadow-sm border-0">
+                            <div class="card-header bg-light">
+                                <strong>Question {{ forloop.counter }}:</strong> {{ field.label }}
+                            </div>
+                            <div class="card-body">
+                                {{ field }}
+                                {% if field.help_text %}
+                                <div class="form-text mt-2">{{ field.help_text|safe }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {% for error in field.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </form>
+                    
+                    <!-- Action buttons -->
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <div class="text-muted d-none d-md-block">
+                            <i class="bi bi-graph-up me-2"></i>Your responses will be used to determine the task's current status
+                        </div>
+                        <div class="d-flex">
+                            <a href="{% url 'task_detail' task.id %}" class="btn btn-outline-secondary px-4 me-2">
+                                <i class="bi bi-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" form="questionnaireForm" class="btn btn-primary px-5">
+                                <i class="bi bi-send me-2"></i>Submit Responses
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Additional styles for questionnaire page */
+    .card-header {
+        font-weight: 500;
+    }
+    
+    .form-control {
+        border-radius: 0.375rem;
+        border-color: #dee2e6;
+        padding: 0.75rem;
+    }
+    
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .form-text {
+        background-color: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 0.375rem;
+        border-left: 3px solid #0d6efd;
+    }
+</style>
+{% endblock %}

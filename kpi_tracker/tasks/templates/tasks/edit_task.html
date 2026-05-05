@@ -1,0 +1,73 @@
+{% extends 'tasks/base.html' %}
+{% load form_tags %}
+
+{% block title %}Edit Task | KPI Tracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">Edit Task: {{ task.task_name }}</h2>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.task_name.id_for_label }}" class="form-label">Task Name</label>
+                        {{ form.task_name.errors }}
+                        {{ form.task_name|add_class:"form-control" }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description.errors }}
+                        {{ form.description|add_class:"form-control" }}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.assigned_to.id_for_label }}" class="form-label">Assigned To</label>
+                            {{ form.assigned_to.errors }}
+                            {{ form.assigned_to|add_class:"form-select" }}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.kpi_status.id_for_label }}" class="form-label">KPI Status</label>
+                            {{ form.kpi_status.errors }}
+                            {{ form.kpi_status|add_class:"form-select" }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.deadline.id_for_label }}" class="form-label">Deadline</label>
+                        {{ form.deadline.errors }}
+                        {{ form.deadline|add_class:"form-control" }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.completion_level.id_for_label }}" class="form-label">Completion Level (%)</label>
+                        {{ form.completion_level.errors }}
+                        {{ form.completion_level|add_class:"form-control" }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.cost_savings.id_for_label }}" class="form-label">Cost Savings ($)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            {{ form.cost_savings.errors }}
+                            {{ form.cost_savings|add_class:"form-control" }}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'task_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Update Task</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

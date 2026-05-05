@@ -1,0 +1,76 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Cycles | KPI Tracker{% endblock %}
+
+{% block content %}
+<div class="py-4 px-2">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold text-primary mb-0">Performance Cycles</h3>
+      <small class="text-muted">Each cycle (year) contains its own set of goals and KPIs</small>
+    </div>
+    <a href="{% url 'add_cycle' %}" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>New Cycle
+    </a>
+  </div>
+
+  {% if cycles %}
+  <div class="row g-3">
+    {% for cycle in cycles %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100" {% if active_cycle and cycle.id == active_cycle.id %}style="border-left: 3px solid var(--primary) !important;"{% endif %}>
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between mb-2">
+            <div>
+              <h5 class="fw-bold mb-1">{{ cycle.name }}</h5>
+              <span class="badge bg-secondary">{{ cycle.year }}</span>
+              {% if cycle.is_active %}
+              <span class="badge bg-success ms-1">System Default</span>
+              {% endif %}
+              {% if active_cycle and cycle.id == active_cycle.id %}
+              <span class="badge bg-primary ms-1">Active Session</span>
+              {% endif %}
+            </div>
+            <i class="bi bi-calendar3 text-muted fs-4"></i>
+          </div>
+          <div class="small text-muted mb-3">
+            <i class="bi bi-calendar-range me-1"></i>
+            {{ cycle.start_date|date:"d M Y" }} — {{ cycle.end_date|date:"d M Y" }}
+          </div>
+          <div class="small mb-3">
+            <span class="text-muted">Goals:</span>
+            <strong>{{ cycle.goals.count }}</strong>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            {% if not active_cycle or cycle.id != active_cycle.id %}
+            <a href="{% url 'switch_cycle' cycle.id %}" class="btn btn-sm btn-primary">
+              <i class="bi bi-arrow-repeat me-1"></i>Switch to this
+            </a>
+            {% else %}
+            <span class="btn btn-sm btn-success disabled">
+              <i class="bi bi-check2 me-1"></i>Current
+            </span>
+            {% endif %}
+            <a href="{% url 'edit_cycle' cycle.id %}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+            <a href="{% url 'delete_cycle' cycle.id %}" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-calendar-x text-muted" style="font-size:3rem;"></i>
+    <h5 class="mt-3 text-muted">No cycles yet</h5>
+    <p class="text-muted small">Create your first performance cycle to start adding goals and KPIs.</p>
+    <a href="{% url 'add_cycle' %}" class="btn btn-primary mt-2">
+      <i class="bi bi-plus-lg me-1"></i>Create First Cycle
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

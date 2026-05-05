@@ -1,0 +1,9 @@
+{
+    "cSpell.ignorePaths": [
+        "requirements.txt",
+        "requirements*.txt",
+        "**/.env",
+        "**/venv/**",
+        "**/*.lock"
+    ]
+}
