@@ -22,6 +22,4 @@ urlpatterns = [
     path('tasks/<int:task_id>/status/', views.update_status, name='update_status'),
     path('tasks/<int:task_id>/updates/<int:update_id>/delete/', views.delete_update, name='delete_update'),
     path('tasks/<int:task_id>/delete/', views.delete_task, name='delete_task'),
-    path('tasks/<int:task_id>/insight/', views.generate_insight, name='generate_insight'),
-    path('portfolio-analysis/', views.portfolio_analysis_view, name='portfolio_analysis'),
 ]

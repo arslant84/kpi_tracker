@@ -78,9 +78,6 @@ class Task(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='not_started')
     notes = models.TextField(blank=True, help_text='Progress update and what is pending')
     last_updated = models.DateTimeField(auto_now=True)
-    ai_insight = models.JSONField(default=dict, blank=True)
-    ai_insight_at = models.DateTimeField(null=True, blank=True)
-
     def __str__(self):
         return f"{self.goal.name} – {self.description[:60]}"
 

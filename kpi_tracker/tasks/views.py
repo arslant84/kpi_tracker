@@ -1,25 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.db.models import Avg
 from django.utils import timezone
 from datetime import date
 from .models import Cycle, Goal, Task, TaskUpdate
 from .forms import CycleForm, GoalForm, TaskForm, TaskStatusForm, TaskUpdateForm
-from django.conf import settings
-from .services.openai_service import GeminiService
-
-_ai = GeminiService() if settings.GEMINI_API_KEY else None
-
-
-def _require_ai(request):
-    if _ai is None:
-        messages.error(request, 'Gemini API key is not configured.')
-        return False
-    return True
-
-
 def _get_active_cycle(request):
     cycle_id = request.session.get('active_cycle_id')
     if cycle_id:
@@ -115,8 +101,6 @@ def dashboard(request):
                     'width': width,
                 })
 
-    portfolio_analysis = cache.get(f'portfolio_analysis_{cycle.id}')
-
     context = {
         'cycle': cycle,
         'goals': goals,
@@ -135,7 +119,6 @@ def dashboard(request):
         'gantt_rows': gantt_rows,
         'has_gantt': len(gantt_rows) > 0,
         'today': today,
-        'portfolio_analysis': portfolio_analysis,
     }
     return render(request, 'tasks/dashboard.html', context)
 
@@ -351,91 +334,3 @@ def delete_task(request, task_id):
         messages.success(request, 'Task deleted.')
         return redirect('kpi_table')
     return render(request, 'tasks/delete_task.html', {'task': task})
-
-
-# ── AI ───────────────────────────────────────────────────────────────────────
-
-@login_required
-def generate_insight(request, task_id):
-    if request.method != 'POST':
-        return redirect('kpi_table')
-    if not _require_ai(request):
-        return redirect('kpi_table')
-    task = get_object_or_404(Task, id=task_id)
-    task_context = {
-        'goal_name': task.goal.name,
-        'goal_weight': task.goal.weight,
-        'description': task.description,
-        'unit_of_measurement': task.unit_of_measurement,
-        'base_target': task.base_target,
-        'stretch_target': task.stretch_target,
-        'base_deadline': str(task.base_deadline) if task.base_deadline else None,
-        'days_remaining': task.days_until_deadline,
-        'completion_level': task.completion_level,
-        'status': task.get_status_display(),
-        'notes': task.notes,
-    }
-    insight = _ai.generate_kpi_insight(task_context)
-    if insight:
-        Task.objects.filter(id=task.id).update(
-            ai_insight=insight,
-            ai_insight_at=timezone.now(),
-        )
-        messages.success(request, 'AI insight generated.')
-    else:
-        messages.error(request, 'Could not generate insight. Daily free-tier quota may be exhausted — enable billing at aistudio.google.com or try again tomorrow.')
-    return redirect('kpi_table')
-
-
-@login_required
-def portfolio_analysis_view(request):
-    if request.method != 'POST':
-        return redirect('dashboard')
-    if not _require_ai(request):
-        return redirect('dashboard')
-    cycle = _get_active_cycle(request)
-    if not cycle:
-        messages.error(request, 'No active cycle.')
-        return redirect('dashboard')
-    goals = Goal.objects.filter(cycle=cycle).prefetch_related('tasks')
-    tasks_qs = Task.objects.filter(goal__cycle=cycle)
-    total_tasks = tasks_qs.count()
-    overall_completion = round(tasks_qs.aggregate(avg=Avg('completion_level'))['avg'] or 0)
-    portfolio_data = {
-        'cycle_name': cycle.name,
-        'total_goals': goals.count(),
-        'total_tasks': total_tasks,
-        'overall_completion': overall_completion,
-        'status_breakdown': {
-            'completed': tasks_qs.filter(status='completed').count(),
-            'on_track': tasks_qs.filter(status='on_track').count(),
-            'behind': tasks_qs.filter(status='behind').count(),
-            'ahead': tasks_qs.filter(status='ahead').count(),
-            'not_started': tasks_qs.filter(status='not_started').count(),
-        },
-        'goals': [
-            {
-                'name': g.name,
-                'weight': g.weight,
-                'overall_completion': g.overall_completion,
-                'tasks': [
-                    {
-                        'description': t.description,
-                        'completion_level': t.completion_level,
-                        'status': t.get_status_display(),
-                        'base_deadline': str(t.base_deadline) if t.base_deadline else None,
-                    }
-                    for t in g.tasks.all()
-                ],
-            }
-            for g in goals
-        ],
-    }
-    analysis = _ai.analyze_portfolio(portfolio_data)
-    if analysis:
-        analysis['generated_at'] = timezone.now().isoformat()
-        cache.set(f'portfolio_analysis_{cycle.id}', analysis, 60 * 60 * 24)
-        messages.success(request, 'Portfolio analysis complete.')
-    else:
-        messages.error(request, 'Could not generate analysis. Daily free-tier quota may be exhausted — enable billing at aistudio.google.com or try again tomorrow.')
-    return redirect('dashboard')

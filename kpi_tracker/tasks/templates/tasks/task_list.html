@@ -3,12 +3,7 @@
 
 {% block extra_css %}
 <style>
-  /* All .section-wrap, .kpi-table, .ai-panel, .status-badge, .risk-badge styles
-     now live in custom.css — only page-specific overrides here */
   .goal-header h6 { margin:0; font-weight:700; font-size:.95rem; }
-  .ai-btn-green { color:#16a34a; border-color:#16a34a; }
-  .ai-btn-amber { color:#d97706; border-color:#d97706; }
-  .ai-btn-red   { color:#dc2626; border-color:#dc2626; }
   .status-badge { white-space:nowrap; }
 </style>
 {% endblock %}
@@ -173,72 +168,6 @@
                 <a href="{% url 'delete_task' task.id %}" class="btn btn-sm btn-outline-danger py-0 px-2 mb-1" title="Delete task">
                   <i class="bi bi-trash"></i>
                 </a>
-                <!-- AI insight toggle -->
-                <button class="btn btn-sm py-0 px-2
-                  {% if task.ai_insight.risk_level == 'green' %}ai-btn-green
-                  {% elif task.ai_insight.risk_level == 'amber' %}ai-btn-amber
-                  {% elif task.ai_insight.risk_level == 'red' %}ai-btn-red
-                  {% else %}btn-outline-secondary{% endif %}"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#ai-{{ task.id }}"
-                  title="AI Insight">
-                  <i class="bi bi-robot"></i>
-                  {% if task.ai_insight %}
-                    {% if task.ai_insight.risk_level == 'green' %}🟢
-                    {% elif task.ai_insight.risk_level == 'amber' %}🟡
-                    {% elif task.ai_insight.risk_level == 'red' %}🔴
-                    {% endif %}
-                  {% endif %}
-                </button>
-              </td>
-            </tr>
-            <!-- AI Insight collapsible row -->
-            <tr class="collapse" id="ai-{{ task.id }}">
-              <td colspan="8" class="p-0">
-                {% if task.ai_insight %}
-                <div class="ai-panel risk-{{ task.ai_insight.risk_level }}">
-                  <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                      <i class="bi bi-robot fs-5"></i>
-                      <span class="risk-badge risk-badge-{{ task.ai_insight.risk_level }}">
-                        {{ task.ai_insight.risk_level|upper }} RISK
-                      </span>
-                      <span class="text-muted small">{{ task.ai_insight.predicted_outcome }}</span>
-                    </div>
-                    <form method="post" action="{% url 'generate_insight' task.id %}" class="d-inline ms-auto flex-shrink-0">
-                      {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Refresh insight">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh
-                        {% if task.ai_insight_at %}<span class="text-muted" style="font-size:.68rem;"> · {{ task.ai_insight_at|date:"d M, H:i" }}</span>{% endif %}
-                      </button>
-                    </form>
-                  </div>
-                  <p class="mb-2"><strong>Assessment:</strong> {{ task.ai_insight.summary }}</p>
-                  <p class="mb-2"><strong>Advice:</strong> {{ task.ai_insight.advice }}</p>
-                  {% if task.ai_insight.recommended_actions %}
-                  <div><strong>Recommended Actions:</strong>
-                    <ul class="mb-0 mt-1">
-                      {% for action in task.ai_insight.recommended_actions %}
-                      <li>{{ action }}</li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                  {% endif %}
-                </div>
-                {% else %}
-                <div class="ai-panel">
-                  <div class="d-flex align-items-center gap-3">
-                    <i class="bi bi-robot text-muted fs-5"></i>
-                    <span class="text-muted small">No AI insight generated yet for this task.</span>
-                    <form method="post" action="{% url 'generate_insight' task.id %}" class="ms-2">
-                      {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-primary">
-                        <i class="bi bi-stars me-1"></i>Generate AI Insight
-                      </button>
-                    </form>
-                  </div>
-                </div>
-                {% endif %}
               </td>
             </tr>
             {% empty %}
