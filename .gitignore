@@ -23,5 +23,10 @@ migrations/__pycache__/
 .DS_Store
 Thumbs.db
 
+# PyInstaller build output
+dist/
+build/
+*.spec.bak
+
 # Logs
 *.log
