@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "bootstrap": "^5.3.3",
-    "bootstrap-icons": "^1.11.3"
-  },
-  "scripts": {
-    "start": ".\\kpi_tracker\\venv\\Scripts\\python.exe kpi_tracker/manage.py runserver"
-  }
-}
