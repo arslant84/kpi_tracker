@@ -91,6 +91,7 @@ hiddenimports = [
     'tasks.forms',
     'tasks.admin',
     'tasks.context_processors',
+    'tasks.middleware',
     'tasks.templatetags.custom_filters',
     'tasks.templatetags.form_tags',
 

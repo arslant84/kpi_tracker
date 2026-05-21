@@ -285,36 +285,55 @@ def update_status(request, task_id):
     if request.method == 'POST':
         form = TaskUpdateForm(request.POST)
         if form.is_valid():
-            cl = form.cleaned_data['completion_level']
+            task_cl = form.cleaned_data['task_completion_level']
+            update_cl = form.cleaned_data['update_completion_level']
             st = form.cleaned_data['status']
             note = form.cleaned_data['note']
-            # Save to history
-            TaskUpdate.objects.create(
-                task=task,
-                completion_level=cl,
-                status=st,
-                note=note,
-            )
-            # Update the task itself (notes = latest entry for KPI table)
-            Task.objects.filter(id=task.id).update(
-                completion_level=cl,
-                status=st,
-                notes=note,
-            )
+            # Log the entry with its own completion % — does not drive task %
+            TaskUpdate.objects.create(task=task, completion_level=update_cl, status=st, note=note)
+            # Update the task's overall completion % independently
+            Task.objects.filter(id=task.id).update(completion_level=task_cl, status=st, notes=note)
             messages.success(request, 'Update logged.')
             return redirect('update_status', task_id=task.id)
     else:
         form = TaskUpdateForm(initial={
-            'completion_level': task.completion_level,
+            'task_completion_level': task.completion_level,
+            'update_completion_level': 100,
             'status': task.status,
         })
 
-    updates = task.updates.all()
+    raw_updates = list(task.updates.all())
+    updates_with_delta = []
+    for i, upd in enumerate(raw_updates):
+        prev_cl = raw_updates[i + 1].completion_level if i + 1 < len(raw_updates) else 0
+        updates_with_delta.append({
+            'update': upd,
+            'delta': upd.completion_level - prev_cl,
+            'is_latest': i == 0,
+        })
+
     return render(request, 'tasks/update_status.html', {
         'form': form,
         'task': task,
-        'updates': updates,
+        'updates': updates_with_delta,
     })
+
+
+@login_required
+def edit_update(request, task_id, update_id):
+    upd = get_object_or_404(TaskUpdate, id=update_id, task_id=task_id)
+    if request.method == 'POST':
+        try:
+            cl = int(request.POST.get('completion_level', upd.completion_level))
+            cl = max(0, min(100, cl))
+        except (ValueError, TypeError):
+            cl = upd.completion_level
+        note = request.POST.get('note', upd.note)
+        upd.completion_level = cl
+        upd.note = note
+        upd.save()
+        messages.success(request, 'Update entry revised.')
+    return redirect('update_status', task_id=task_id)
 
 
 @login_required

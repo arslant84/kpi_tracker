@@ -45,6 +45,10 @@
   }
 
   .update-card:hover { border-color: rgba(var(--primary-rgb), .3); }
+  .update-card-latest {
+    border-color: rgba(var(--primary-rgb), .45);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), .08);
+  }
 
   .update-note {
     color: var(--text);
@@ -82,7 +86,7 @@
         </a>
         <div>
           <h4 class="fw-bold text-primary mb-0">Update Progress</h4>
-          <small class="text-muted">Each save is recorded to the history →</small>
+          <small class="text-muted">Each save is timestamped and its % is applied to the task completion.</small>
         </div>
       </div>
 
@@ -125,23 +129,49 @@
           <form method="post" id="updateForm">
             {% csrf_token %}
 
-            <!-- Completion slider -->
-            <div class="mb-3">
-              <label class="form-label fw-semibold small">Completion Level</label>
+            <!-- ① Overall task completion (applies to task KPI %) -->
+            <div class="mb-3 p-3 rounded" style="background:rgba(var(--primary-rgb),.06);border:1px solid rgba(var(--primary-rgb),.18);">
+              <label class="form-label fw-semibold small mb-1">
+                <i class="bi bi-bar-chart-fill me-1" style="color:var(--primary);"></i>
+                Overall Task Completion
+                <span class="badge bg-primary ms-1" style="font-size:.6rem;">updates KPI table</span>
+              </label>
               <div class="d-flex align-items-center gap-2">
-                <input type="range" id="completionRange" min="0" max="100"
+                <input type="range" id="taskRange" min="0" max="100"
                        class="form-range flex-grow-1"
-                       value="{{ form.completion_level.value|default:task.completion_level }}"
-                       oninput="syncNum(this.value)">
+                       value="{{ form.task_completion_level.value|default:task.completion_level }}"
+                       oninput="syncTask(this.value)">
                 <div class="input-group" style="width:86px;">
-                  {{ form.completion_level }}
+                  {{ form.task_completion_level }}
                   <span class="input-group-text px-2">%</span>
                 </div>
               </div>
               <div class="progress mt-2" style="height:8px;">
-                <div id="completionBar" class="progress-bar"
-                     style="width:{{ form.completion_level.value|default:task.completion_level }}%;
-                            background:var(--primary);transition:width .15s;"></div>
+                <div id="taskBar" class="progress-bar"
+                     style="width:{{ form.task_completion_level.value|default:task.completion_level }}%;background:var(--primary);transition:width .15s;"></div>
+              </div>
+            </div>
+
+            <!-- ② This update's own completion (log entry only, does not affect task %) -->
+            <div class="mb-3 p-3 rounded" style="background:rgba(108,117,125,.06);border:1px solid rgba(108,117,125,.2);">
+              <label class="form-label fw-semibold small mb-1">
+                <i class="bi bi-journal-check me-1 text-secondary"></i>
+                This Update's Completion
+                <span class="badge bg-secondary ms-1" style="font-size:.6rem;">logged with entry only</span>
+              </label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="range" id="updateRange" min="0" max="100"
+                       class="form-range flex-grow-1"
+                       value="{{ form.update_completion_level.value|default:100 }}"
+                       oninput="syncUpdate(this.value)">
+                <div class="input-group" style="width:86px;">
+                  {{ form.update_completion_level }}
+                  <span class="input-group-text px-2">%</span>
+                </div>
+              </div>
+              <div class="progress mt-2" style="height:8px;">
+                <div id="updateBar" class="progress-bar bg-secondary"
+                     style="width:{{ form.update_completion_level.value|default:100 }}%;transition:width .15s;"></div>
               </div>
             </div>
 
@@ -179,15 +209,18 @@
         <h5 class="fw-bold mb-0">
           <i class="bi bi-clock-history me-2 text-primary"></i>Update History
         </h5>
-        <span class="badge bg-secondary">{{ updates.count }} entr{{ updates.count|pluralize:"y,ies" }}</span>
+        <span class="badge bg-secondary">{{ updates|length }} entr{{ updates|length|pluralize:"y,ies" }}</span>
       </div>
 
       {% if updates %}
       <div class="update-timeline">
-        {% for upd in updates %}
+        {% for entry in updates %}
+        {% with upd=entry.update delta=entry.delta is_latest=entry.is_latest %}
         <div class="update-entry">
-          <div class="update-card">
-            <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+          <div class="update-card {% if is_latest %}update-card-latest{% endif %}">
+
+            <!-- Row 1: status chip + completion + delta + timestamp -->
+            <div class="d-flex align-items-start justify-content-between gap-2 mb-2 flex-wrap">
               <div class="d-flex align-items-center gap-2 flex-wrap">
                 <!-- Status chip -->
                 <span class="status-chip status-{{ upd.status }}">
@@ -198,22 +231,54 @@
                   {% else %}<i class="bi bi-dash-circle"></i>{% endif %}
                   {{ upd.get_status_display }}
                 </span>
-                <!-- Completion pill -->
-                <span class="badge rounded-pill"
-                      style="background:rgba(var(--primary-rgb),.12);color:var(--primary);font-size:.7rem;">
-                  {{ upd.completion_level }}%
+
+                <!-- This update's completion pill -->
+                <span class="badge rounded-pill fw-bold"
+                      style="background:rgba(108,117,125,.13);color:var(--text-muted);font-size:.75rem;padding:.3em .7em;"
+                      title="Completion % of this update's planned work">
+                  <i class="bi bi-journal-check me-1"></i>{{ upd.completion_level }}%
                 </span>
+
+                <!-- Delta badge -->
+                {% if delta > 0 %}
+                <span class="badge rounded-pill bg-success bg-opacity-15 text-success"
+                      style="font-size:.7rem;" title="Change from previous update">
+                  <i class="bi bi-arrow-up-short"></i>+{{ delta }}%
+                </span>
+                {% elif delta < 0 %}
+                <span class="badge rounded-pill bg-danger bg-opacity-15 text-danger"
+                      style="font-size:.7rem;" title="Change from previous update">
+                  <i class="bi bi-arrow-down-short"></i>{{ delta }}%
+                </span>
+                {% else %}
+                <span class="badge rounded-pill bg-secondary bg-opacity-10 text-secondary"
+                      style="font-size:.7rem;" title="No change from previous update">
+                  <i class="bi bi-dash"></i> no change
+                </span>
+                {% endif %}
+
+                <!-- Latest badge -->
+                {% if is_latest %}
+                <span class="badge bg-secondary" style="font-size:.65rem;">
+                  <i class="bi bi-pin-fill me-1"></i>Latest
+                </span>
+                {% endif %}
               </div>
+
+              <!-- Timestamp + edit + delete -->
               <div class="d-flex align-items-center gap-2 flex-shrink-0">
                 <span class="update-meta">
                   <i class="bi bi-clock me-1"></i>{{ upd.created_at|date:"d M Y, H:i" }}
                 </span>
-                <!-- Delete button -->
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                        title="Edit this entry"
+                        onclick="toggleEditForm('edit-{{ upd.id }}')">
+                  <i class="bi bi-pencil"></i>
+                </button>
                 <form method="post" action="{% url 'delete_update' task.id upd.id %}"
                       onsubmit="return confirm('Delete this update entry?');">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"
-                          title="Delete this entry">
+                  <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Delete entry">
                     <i class="bi bi-trash3"></i>
                   </button>
                 </form>
@@ -221,23 +286,61 @@
             </div>
 
             <!-- Progress bar -->
-            <div class="progress mb-2" style="height:5px;">
+            <div class="progress mb-2" style="height:6px;border-radius:3px;">
               <div class="progress-bar
                 {% if upd.completion_level == 100 %}bg-success
                 {% elif upd.completion_level >= 60 %}bg-info
                 {% elif upd.completion_level >= 30 %}bg-warning
                 {% else %}bg-danger{% endif %}"
-                style="width:{{ upd.completion_level }}%"></div>
+                style="width:{{ upd.completion_level }}%;transition:width .3s;"></div>
             </div>
 
-            <!-- Note text -->
+            <!-- Note text (view mode) -->
             {% if upd.note %}
-            <div class="update-note">{{ upd.note }}</div>
+            <div class="update-note" id="note-{{ upd.id }}">{{ upd.note }}</div>
             {% else %}
-            <div class="text-muted small fst-italic">No note written for this entry.</div>
+            <div class="text-muted small fst-italic" id="note-{{ upd.id }}">No note for this entry.</div>
             {% endif %}
+
+            <!-- Inline edit form (hidden by default) -->
+            <div id="edit-{{ upd.id }}" style="display:none;margin-top:.75rem;">
+              <form method="post" action="{% url 'edit_update' task.id upd.id %}">
+                {% csrf_token %}
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold mb-1">This Update's Completion %</label>
+                  <div class="d-flex align-items-center gap-2">
+                    <input type="range" min="0" max="100" value="{{ upd.completion_level }}"
+                           class="form-range flex-grow-1"
+                           oninput="syncEditSlider(this, 'edit-num-{{ upd.id }}', 'edit-bar-{{ upd.id }}')">
+                    <div class="input-group" style="width:86px;">
+                      <input type="number" name="completion_level" id="edit-num-{{ upd.id }}"
+                             min="0" max="100" value="{{ upd.completion_level }}"
+                             class="form-control form-control-sm"
+                             oninput="syncEditNum(this, 'edit-bar-{{ upd.id }}')">
+                      <span class="input-group-text px-2">%</span>
+                    </div>
+                  </div>
+                  <div class="progress mt-1" style="height:5px;">
+                    <div id="edit-bar-{{ upd.id }}" class="progress-bar bg-secondary"
+                         style="width:{{ upd.completion_level }}%;transition:width .15s;"></div>
+                  </div>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold mb-1">Note</label>
+                  <textarea name="note" rows="2" class="form-control form-control-sm">{{ upd.note }}</textarea>
+                </div>
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi bi-check2 me-1"></i>Save
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary"
+                          onclick="toggleEditForm('edit-{{ upd.id }}')">Cancel</button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
+        {% endwith %}
         {% endfor %}
       </div>
       {% else %}
@@ -255,18 +358,48 @@
 
 {% block extra_js %}
 <script>
-  const numInput  = document.getElementById('id_completion_level');
-  const rangeInput = document.getElementById('completionRange');
-  const bar = document.getElementById('completionBar');
-  numInput.style.width = '56px';
+  // ── Overall task completion slider ──
+  const taskNum   = document.getElementById('id_task_completion_level');
+  const taskRange = document.getElementById('taskRange');
+  const taskBar   = document.getElementById('taskBar');
+  if (taskNum) taskNum.style.width = '56px';
 
-  function syncNum(val) {
-    numInput.value = val;
-    bar.style.width = val + '%';
+  function syncTask(val) {
+    taskNum.value = val;
+    taskBar.style.width = val + '%';
   }
-  numInput.addEventListener('input', function () {
-    rangeInput.value = this.value;
-    bar.style.width = this.value + '%';
+  if (taskNum) taskNum.addEventListener('input', function () {
+    taskRange.value = this.value;
+    taskBar.style.width = this.value + '%';
+  });
+
+  // ── Inline edit helpers ──
+  function toggleEditForm(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+  function syncEditSlider(rangeEl, numId, barId) {
+    document.getElementById(numId).value = rangeEl.value;
+    document.getElementById(barId).style.width = rangeEl.value + '%';
+  }
+  function syncEditNum(numEl, barId) {
+    numEl.previousElementSibling && (numEl.closest('.d-flex').querySelector('input[type=range]').value = numEl.value);
+    document.getElementById(barId).style.width = numEl.value + '%';
+  }
+
+  // ── This update's completion slider ──
+  const updateNum   = document.getElementById('id_update_completion_level');
+  const updateRange = document.getElementById('updateRange');
+  const updateBar   = document.getElementById('updateBar');
+  if (updateNum) updateNum.style.width = '56px';
+
+  function syncUpdate(val) {
+    updateNum.value = val;
+    updateBar.style.width = val + '%';
+  }
+  if (updateNum) updateNum.addEventListener('input', function () {
+    updateRange.value = this.value;
+    updateBar.style.width = this.value + '%';
   });
 </script>
 {% endblock %}

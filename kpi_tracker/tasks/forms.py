@@ -63,10 +63,22 @@ class TaskStatusForm(forms.ModelForm):
 
 
 class TaskUpdateForm(forms.Form):
-    """Standalone form for logging a new progress update entry."""
-    completion_level = forms.IntegerField(
+    """Log a progress entry.
+
+    task_completion_level  — sets the task's overall completion % (KPI table).
+    update_completion_level — records how much of THIS update's planned work was
+                              done; stored on the log entry only, never affects
+                              the task's overall %.
+    """
+    task_completion_level = forms.IntegerField(
         min_value=0, max_value=100,
-        widget=forms.NumberInput(attrs={'min': 0, 'max': 100, 'class': 'form-control'}),
+        label='Overall Task Completion',
+        widget=forms.NumberInput(attrs={'min': 0, 'max': 100, 'class': 'form-control', 'id': 'id_task_completion_level'}),
+    )
+    update_completion_level = forms.IntegerField(
+        min_value=0, max_value=100,
+        label='This Update\'s Completion',
+        widget=forms.NumberInput(attrs={'min': 0, 'max': 100, 'class': 'form-control', 'id': 'id_update_completion_level'}),
     )
     status = forms.ChoiceField(
         choices=Task.STATUS_CHOICES,
